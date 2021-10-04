@@ -16,7 +16,7 @@ python tg.py --token yourtokenhere --dl_path yourdownloadpathhere
 """
 parser = argparse.ArgumentParser(description="login to telegram bot")
 parser.add_argument("-d", "--debug", help="debug the program", action="store_true")
-parser.add_argument("-t", "--token", help="add your token to the program")
+parser.add_argument("-t", "--token", help="add your token to the program", required=True)
 parser.add_argument("-p", "--dl_path", help="write your directory", default=r'c:\downloads')
 
 args = parser.parse_args()
@@ -30,7 +30,7 @@ DOWNLOADS_PATH = args.dl_path
 
 class File(object):
     """
-    Class functions to summon file later in command_cmd function.
+    Class functions to fetch file later in command_cmd function.
     """
     name = ''
     __data__ = bytes()
@@ -55,32 +55,33 @@ def command(x):
     return t
 
 
-def command_cmd(bot, update):
+def command_cmd(update, context):
     """
     cmd function. works in the bot like so:
-
     /cmd -yourcmdcommand-
-
     Returns in the bot your output
     """
     x = update.message.text
     x = x[5:]
-    command_output = command(x)
-    if len(command_output) > 4000:
-        # if your output is longer than 4000 characters, the bot sends a file with the output to you.
-        invalid_chars = ['\\', ':', '*', '<', '>', '|', '"', '?', '/']
-        for c in invalid_chars:
-            x = x.replace(c, '.')
-        new = File(x, command_output)
-        bot.send_document(chat_id=update.message.chat_id, document=new)
-    else:
-        bot.send_message(chat_id=update.message.chat_id, text=command_output)
+    try:
+        command_output = command(x)
+        if len(command_output) > 4000:
+            # if your output is longer than 4000 characters, the bot sends a file with the output to you.
+            invalid_chars = ['\\', ':', '*', '<', '>', '|', '"', '?', '/']
+            for c in invalid_chars:
+                x = x.replace(c, '.')
+            new = File(x, command_output)
+            context.bot.send_document(chat_id=update.message.chat_id, document=new)
+        else:
+            context.bot.send_message(chat_id=update.message.chat_id, text=command_output)
+
+    except Exception as e:
+        context.bot.send_message(chat_id=update.message.chat_id, text=str(e))
 
 
-def file_cmd(bot, update):
+def file_cmd(update, context):
     """
     file function. can change your file name,path and extention with string in caption.
-
     1. Drag file to the bot.
     2. write in caption new path and name:
     c:\newfolder\newfilename.newfileext
@@ -90,23 +91,25 @@ def file_cmd(bot, update):
     if not update.message.caption:
         # if you write nothing in the caption - copies file to dl-path.
         d = os.path.join(DOWNLOADS_PATH, update.message.document.file_name)
-        f.download(d)
     else:
-        os.rename(update.message.document.file_name, ntpath.basename(update.message.caption))
         d = os.path.join(os.path.dirname(update.message.caption), ntpath.basename(update.message.caption))
+    try:
         f.download(d)
+    except Exception as e:
+        context.bot.send_message(chat_id=update.message.chat_id, text=str(e))
 
 
-def get_cmd(bot, update):
+def get_cmd(update, context):
     """get function. works in the bot like so:
-
     /get c:\foldername\filename.fileext
-
     the bot sends you the file specified.
     """
     x = update.message.text
     x = x[5:]
-    bot.send_document(chat_id=update.message.chat_id, document=open(x, 'rb'))
+    try:
+        context.bot.send_document(chat_id=update.message.chat_id, document=open(x, 'rb'))
+    except Exception as e:
+        context.bot.send_message(chat_id=update.message.chat_id, text=str(e))
 
 
 if __name__ == '__main__':
